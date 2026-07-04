@@ -45,6 +45,24 @@ Layering: **Controllers** handle HTTP → **Services** validate and orchestrate 
 
 ---
 
+## Explain it like I'm five
+
+Imagine you have a friend whose full home address is really long to say out loud:
+`"Apartment 4B, 221 Baker Street, next to the blue bakery, third floor."`
+
+So you give that address a nickname: **"Sherlock's Place."** Now you write "Sherlock's Place" on a sticky note (that's the **short code**, like `Ab3X9Q`) and pin it to a giant corkboard (that's the **database**). The corkboard remembers: *this nickname → that long address*.
+
+- **Shortening a URL** = writing a new sticky note and pinning it to the corkboard.
+- **The short link** (`localhost:5000/Ab3X9Q`) = saying "Sherlock's Place" out loud instead of the whole address.
+- **Clicking the short link** = someone hears "Sherlock's Place," walks to the corkboard, finds the sticky note, reads the real address, and walks straight there instead (that's the **redirect**). Every time someone does this, we add a tally mark to the note (**click count**).
+- **The table on the webpage** = a photo of the whole corkboard, so you can see every nickname you've made.
+- **Deleting a link** = ripping a sticky note off the board. Once it's gone, that nickname stops working.
+- **"Please enter a valid URL"** = the corkboard refusing to pin a note that isn't a real address (like just "banana") — it has to look like a real place before it gets a nickname.
+
+The C# code is just the person standing at the corkboard: writing new notes, reading them when someone asks, and tearing them down when told to. SQL Server *is* the corkboard — it's the only thing that actually remembers anything; if you stop the app and start it again, the notes are still pinned there.
+
+---
+
 ## How it works
 
 ### Architecture

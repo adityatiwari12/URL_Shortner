@@ -36,12 +36,77 @@ UrlShortener/
 │   └── script.js
 ├── Database/
 │   └── schema.sql               # run once in SSMS to create DB + table
-├── appsettings.json             # connection string + base URL
+├── appsettings.json             # connection string
 ├── Program.cs                   # DI wiring, static files, redirect route
 └── UrlShortener.csproj
 ```
 
 Layering: **Controllers** handle HTTP → **Services** validate and orchestrate → **Data** talks to SQL Server. Controllers never touch `DatabaseHelper` directly.
+
+---
+
+## How it works
+
+### Architecture
+
+The whole app is a single ASP.NET Core process. It serves the static frontend, the JSON API, and the redirect endpoint all from one Kestrel server on one port — there is no separate frontend server or build step.
+
+```mermaid
+flowchart TB
+    subgraph Client["Browser"]
+        UI["wwwroot/*<br/>index.html + style.css + script.js"]
+    end
+
+    subgraph App["ASP.NET Core process (Kestrel)"]
+        direction TB
+        SF["Static File Middleware<br/>(UseDefaultFiles / UseStaticFiles)"]
+        CTRL["UrlController<br/>/api/url (POST · GET · DELETE)"]
+        RC["Minimal API route<br/>GET /{shortCode} (redirect)"]
+        SVC["UrlShortenerService<br/>validation + orchestration"]
+        GEN["ShortCodeGenerator<br/>random 6-char code"]
+        DB["DatabaseHelper<br/>raw ADO.NET"]
+    end
+
+    SQL[("SQL Server<br/>UrlShortenerDB.Urls")]
+
+    UI -- "GET / , /style.css , /script.js" --> SF
+    UI -- "fetch() → JSON" --> CTRL
+    UI -- "browser navigation<br/>(click short link)" --> RC
+
+    CTRL --> SVC
+    RC --> SVC
+    SVC --> GEN
+    SVC --> DB
+    GEN -- "check uniqueness" --> DB
+    DB -- "SqlConnection / SqlCommand /<br/>SqlDataReader" --> SQL
+```
+
+Each arrow into `DatabaseHelper` is a parameterized ADO.NET call — no ORM, no LINQ-to-SQL translation, just `SqlCommand` objects with `@Parameter` placeholders.
+
+### Flow 1 — Shortening a URL
+
+1. Browser: user types a URL, `script.js` validates it client-side (`new URL(...)`, checks scheme), then `fetch()`-POSTs `{ originalUrl }` to `/api/url`.
+2. `UrlController.CreateShortUrl` re-validates server-side (never trust the client) and reads the caller's own scheme/host off the incoming request (`Request.Scheme`, `Request.Host`) — this becomes the base for the short link, so it is always correct for whatever host/port the app is actually reachable on, not a value frozen in a config file.
+3. `UrlShortenerService.CreateShortUrl` calls `ShortCodeGenerator.GenerateUniqueShortCode()`, which repeatedly generates a random 6-character `[A-Za-z0-9]` string and asks `DatabaseHelper.ShortCodeExists` (a `SELECT COUNT(1) ... WHERE ShortCode = @ShortCode`) until it finds one that isn't taken (up to 10 attempts).
+4. `DatabaseHelper.InsertUrl` runs `INSERT ... OUTPUT INSERTED.* VALUES (@OriginalUrl, @ShortCode)` — the `OUTPUT` clause hands back the full row (including the `Id` SQL Server just assigned and the `CreatedAt`/`ClickCount` defaults) in the same round trip, no second query needed.
+5. The controller returns the created row plus the computed `shortUrl` as JSON; the frontend renders it in the result card and prepends a new row to the table — no page reload.
+
+### Flow 2 — Opening a short link
+
+1. Someone opens `http://<host>/<shortCode>` in a browser (a plain GET navigation, not `fetch`).
+2. `Program.cs` registers this as a minimal API route, `MapGet("/{shortCode:length(6)}", ...)`, placed *after* static files and controllers so it only ever matches paths that aren't a real file or a registered API route.
+3. It calls `UrlShortenerService.ResolveAndTrackClick`, which does a `SELECT` by `ShortCode` and, if found, an `UPDATE Urls SET ClickCount = ClickCount + 1 WHERE ShortCode = @ShortCode` (two separate ADO.NET calls, both parameterized).
+4. If the code exists, the endpoint returns `Results.Redirect(originalUrl)` — an HTTP 302 with a `Location` header — and the browser follows it to the real destination. If not, it returns a 404 with a friendly JSON message instead of crashing.
+
+### Flow 3 — Listing and deleting
+
+`GET /api/url` runs a single `SELECT ... ORDER BY CreatedAt DESC` and streams rows back via `SqlDataReader`, newest first. `DELETE /api/url/{shortCode}` runs a parameterized `DELETE ... WHERE ShortCode = @ShortCode` and returns `204` if a row was actually removed, `404` otherwise — the frontend only removes the table row after the server confirms the delete succeeded.
+
+### Why the layers are split this way
+
+- **Controllers** only know about HTTP (status codes, request/response shapes). They never build SQL or generate codes themselves.
+- **Services** hold every business rule — URL validation, "is this code unique", "build the redirect target" — so the rules are testable and reusable independent of HTTP.
+- **Data** (`DatabaseHelper`) is the only class that imports `Microsoft.Data.SqlClient`. Every method opens its own `SqlConnection` in a `using` block, so connections are always closed/returned to the pool even if an exception is thrown mid-query.
 
 ---
 
@@ -107,7 +172,7 @@ Edit `appsettings.json`:
 - `Server=` — match your instance name from step 1 (`.\SQLEXPRESS`, `localhost`, `.\MSSQLSERVER`, etc).
 - Using SQL auth instead of Windows auth? Replace `Trusted_Connection=True` with `User Id=...;Password=...;`.
 
-Also check `AppSettings:BaseUrl` matches the address you'll run the app on (default `http://localhost:5000`) — this is used to build the short links returned to the frontend.
+Short links are built from whatever host/port the app is actually running on (see [How it works](#how-it-works)) — nothing to configure here. `Properties/launchSettings.json` pins the default dev port to `5000`.
 
 ### 4. Run the app
 

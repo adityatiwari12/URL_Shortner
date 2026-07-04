@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>URL Shortener</title>
+  <link rel="icon" href="favicon.ico" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <main class="container">
+    <header class="hero">
+      <h1>URL Shortener</h1>
+      <p class="subtitle">Convert long URLs into short, shareable links instantly.</p>
+
+      <form id="shorten-form" class="shorten-form" autocomplete="off">
+        <input
+          type="text"
+          id="original-url"
+          class="url-input"
+          placeholder="Paste your URL here..."
+          required
+        />
+        <button type="submit" id="shorten-btn" class="btn btn-primary">
+          <span class="btn-text">Shorten URL</span>
+        </button>
+      </form>
+
+      <p id="form-message" class="form-message" role="alert"></p>
+
+      <section id="result-card" class="result-card hidden">
+        <p class="result-label">Your shortened URL</p>
+        <div class="result-row">
+          <a id="result-link" href="#" target="_blank" rel="noopener noreferrer" class="result-link"></a>
+          <button id="copy-btn" class="btn btn-secondary">Copy</button>
+        </div>
+      </section>
+    </header>
+
+    <section class="links-section">
+      <h2>Recent Links</h2>
+
+      <div class="table-wrapper">
+        <table class="links-table">
+          <thead>
+            <tr>
+              <th>Original URL</th>
+              <th>Short URL</th>
+              <th>Created</th>
+              <th>Clicks</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="links-table-body">
+            <tr>
+              <td colspan="5" class="empty-state">Loading links...</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    Built by Aadra Trivedi, Anushka Sisodia, Aarna Dubey, Adivitya Verma
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>

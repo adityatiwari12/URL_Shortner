@@ -12,13 +12,11 @@ namespace UrlShortener.Services
     {
         private readonly DatabaseHelper _databaseHelper;
         private readonly ShortCodeGenerator _shortCodeGenerator;
-        private readonly string _baseUrl;
 
-        public UrlShortenerService(DatabaseHelper databaseHelper, ShortCodeGenerator shortCodeGenerator, IConfiguration configuration)
+        public UrlShortenerService(DatabaseHelper databaseHelper, ShortCodeGenerator shortCodeGenerator)
         {
             _databaseHelper = databaseHelper;
             _shortCodeGenerator = shortCodeGenerator;
-            _baseUrl = configuration["AppSettings:BaseUrl"]?.TrimEnd('/') ?? string.Empty;
         }
 
         /// <summary>
@@ -38,7 +36,7 @@ namespace UrlShortener.Services
         /// <summary>
         /// Creates a shortened URL for the given original URL.
         /// </summary>
-        public CreateUrlResponse CreateShortUrl(string originalUrl)
+        public CreateUrlResponse CreateShortUrl(string originalUrl, string baseUrl)
         {
             if (!IsValidUrl(originalUrl))
             {
@@ -53,7 +51,7 @@ namespace UrlShortener.Services
                 Id = created.Id,
                 OriginalUrl = created.OriginalUrl,
                 ShortCode = created.ShortCode,
-                ShortUrl = BuildShortUrl(created.ShortCode),
+                ShortUrl = BuildShortUrl(baseUrl, created.ShortCode),
                 CreatedAt = created.CreatedAt,
                 ClickCount = created.ClickCount
             };
@@ -62,7 +60,7 @@ namespace UrlShortener.Services
         /// <summary>
         /// Returns all shortened URLs, newest first, shaped for the frontend.
         /// </summary>
-        public List<CreateUrlResponse> GetAllUrls()
+        public List<CreateUrlResponse> GetAllUrls(string baseUrl)
         {
             return _databaseHelper.GetAllUrls()
                 .Select(u => new CreateUrlResponse
@@ -70,7 +68,7 @@ namespace UrlShortener.Services
                     Id = u.Id,
                     OriginalUrl = u.OriginalUrl,
                     ShortCode = u.ShortCode,
-                    ShortUrl = BuildShortUrl(u.ShortCode),
+                    ShortUrl = BuildShortUrl(baseUrl, u.ShortCode),
                     CreatedAt = u.CreatedAt,
                     ClickCount = u.ClickCount
                 })
@@ -101,9 +99,9 @@ namespace UrlShortener.Services
             return _databaseHelper.DeleteByShortCode(shortCode);
         }
 
-        private string BuildShortUrl(string shortCode)
+        private static string BuildShortUrl(string baseUrl, string shortCode)
         {
-            return $"{_baseUrl}/{shortCode}";
+            return $"{baseUrl.TrimEnd('/')}/{shortCode}";
         }
     }
 }

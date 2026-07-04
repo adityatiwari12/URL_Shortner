@@ -35,7 +35,8 @@ namespace UrlShortener.Controllers
 
             try
             {
-                var response = _urlShortenerService.CreateShortUrl(request.OriginalUrl);
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var response = _urlShortenerService.CreateShortUrl(request.OriginalUrl, baseUrl);
                 return CreatedAtAction(nameof(CreateShortUrl), new { shortCode = response.ShortCode }, response);
             }
             catch (ArgumentException ex)
@@ -57,7 +58,8 @@ namespace UrlShortener.Controllers
         {
             try
             {
-                var urls = _urlShortenerService.GetAllUrls();
+                var baseUrl = $"{Request.Scheme}://{Request.Host}";
+                var urls = _urlShortenerService.GetAllUrls(baseUrl);
                 return Ok(urls);
             }
             catch (Exception ex)

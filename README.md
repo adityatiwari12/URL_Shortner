@@ -173,9 +173,3 @@ curl -X POST http://localhost:5000/api/url \
 
 **"Please enter a valid URL"**
 → The URL must be absolute and use `http://` or `https://`. Validation happens both in the browser (`script.js`) and on the server (`UrlShortenerService.IsValidUrl`) — invalid URLs are rejected before ever reaching the database.
-
----
-
-## Credits
-
-Built by Aadra Trivedi, Anushka Sisodia, Aarna Dubey, Adivitya Verma.
